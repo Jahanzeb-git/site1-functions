@@ -669,4 +669,68 @@ function add_privacy_terms_checkbox() {
 add_action('woocommerce_checkout_process', 'validate_privacy_terms_checkbox');
 function validate_privacy_terms_checkbox() {
     // Verify nonce before processing (security)
-    if (!isset($_POST['woocommerce-process-
+    if (!isset($_POST['woocommerce-process-checkout-nonce']) || 
+        !wp_verify_nonce(sanitize_text_field($_POST['woocommerce-process-checkout-nonce']), 'woocommerce-process-checkout')) {
+        return;
+    }
+    
+    if (!isset($_POST['terms_privacy']) || $_POST['terms_privacy'] !== 'on') {
+        wc_add_notice(__('Please agree to the Privacy Policy and Terms & Conditions to proceed.'), 'error');
+    }
+}
+
+/**
+ * Enqueue JavaScript and CSS for the checkout page
+ * Optimized to load only on checkout page and use inline CSS for faster rendering
+ */
+add_action('wp_enqueue_scripts', 'enqueue_checkout_scripts');
+function enqueue_checkout_scripts() {
+    // Only load on the checkout page
+    if (!is_checkout()) return;
+    
+    // Enqueue JavaScript with proper versioning
+    wp_enqueue_script(
+        'checkout-terms-script',
+        get_stylesheet_directory_uri() . '/js/checkout-terms.js',
+        array('jquery'),
+        filemtime(get_stylesheet_directory() . '/js/checkout-terms.js') ?: '1.0',
+        true
+    );
+
+    // Add inline CSS for faster rendering (no additional HTTP request)
+    wp_add_inline_style('astra-child-style', '
+        .checkout-terms-checkbox {
+            margin: 10px 0;
+        }
+        .terms-checkbox label {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            color: #333;
+        }
+        .terms-checkbox a {
+            color: #0057ff;
+            text-decoration: underline;
+        }
+        .terms-checkbox a:hover {
+            color: #003bb5;
+        }
+        .woocommerce-checkout #place_order:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        #order_review {
+            margin-top: 0;
+        }
+    ');
+    
+    // Add print media query for better print styling
+    wp_add_inline_style('astra-child-style', '
+        @media print {
+            .checkout-terms-checkbox {
+                display: none;
+            }
+        }
+    ');
+}
